@@ -236,7 +236,9 @@ export const playerRun = (data,aiRun) => {
                 const container1 =  document.getElementById(`contest-log-rnd`);
                 DOM_delete_allChildren(container1);
                 container1.appendChild(parseSimulationLog(log));
+
                 element_use_button.removeEventListener('click', addEvent);
+                use_card_list.removeEventListener('change',change);
             }else{
                 contest.startTurn();
                 update();
