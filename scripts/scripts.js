@@ -3,13 +3,7 @@ import { SkillCardData } from './simulator/data/skillCardData.js';
 import { ContestData } from './simulator/data/contestData.js';
 import { PItemData } from './simulator/data/pItemData.js';
 import { aiRun } from './simulator/aiRun.js';
-import { DOM_delete_allChildren, DOM_set_select_options, playerRun } from './simulator/playerRun.js';
-
-function DOM_text_to_elememt (text) {
-    const temporaryDiv = document.createElement('div');
-    temporaryDiv.innerHTML = text;
-    return temporaryDiv.firstElementChild;
-}
+import { DOM_text_to_elememt, DOM_delete_allChildren, DOM_set_select_options, playerRun } from './simulator/playerRun.js';
 
 function DOM_set_contest (parent) {
     const fragment = document.createDocumentFragment();
@@ -56,6 +50,45 @@ function DOM_set_character (parent, pIdolList) {
     });
     DOM_delete_allChildren(parent);
     parent.appendChild(fragment);
+}
+
+function parseSimulationLog (simulationLog) {
+    const container = document.createElement('div');
+    for (const log of simulationLog.log) {
+        const textElement = `
+        <div>
+            <div class="log-turn" data-turnType="${log.turnType}">
+                ${log.turn}ターン目　
+                ${log.turnType}
+                <i class="fa-solid fa-star"></i>${log.status.score}
+                <i class="fa-solid fa-heart"></i>${log.status.hp}
+                <i class="fa-solid fa-shield-halved"></i>${log.status.block}
+            </div>
+        </div>`;
+        container.appendChild(DOM_text_to_elememt(textElement));
+        container.appendChild(parseExecutionLog(log.executionLog));
+    }
+    return container;
+}
+
+function parseExecutionLog (executionLog) {
+    const container = document.createElement('div');
+    executionLog.forEach(entry => {
+        const element = document.createElement('div');
+        if (entry.type === 'effect') {
+            element.textContent = entry.message;
+        } else if (entry.type === 'use') {
+            const nameElement = document.createElement('div');
+            nameElement.textContent = `${entry.name}を使った`;
+            element.appendChild(nameElement);
+            const listContainer = document.createElement('div');
+            listContainer.className = 'list';
+            listContainer.appendChild(parseExecutionLog(entry.list));
+            element.appendChild(listContainer);
+        }
+        container.appendChild(element);
+    });
+    return container;
 }
 
 window.addEventListener('error', (event) => {
@@ -310,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 実行
     let run_flag = false;
     const element_run_button = document.getElementById('run-button');
-    element_run_button.addEventListener('click', () => {
+    element_run_button.addEventListener('click', async() => {
         if (run_flag) {
             alert('実行中です。');
             return;
@@ -374,6 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 hp: hp,
             },
             plan: current_main_plan,
+            trend: pIdol.trend,
             pItemIds: pItemIds,
 
             skillCardIds: skillCardIds, 
@@ -381,29 +415,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             count: 1,
         };
-
-        let scoreList, minLog, rndLog;
         
         let aiRunFun = (s) => {
-            const result = aiRun(run_data);
-            scoreList = result.scoreList;
-            rndLog = result.rndLog;
+            const log = aiRun(run_data);
 
-            document.getElementById('contest-log-rnd').innerHTML = rndLog.text.replaceAll('\n', '<br>');
+            //document.getElementById('contest-log-rnd').innerHTML = rndLog.text.replaceAll('\n', '<br>');
 
             document.getElementById('result-score-mean').textContent = s;
-            document.getElementById('result-score-median').textContent = rndLog.score;
+            document.getElementById('result-score-median').textContent = log.finalStatus.score;
             
             chart.data = {
                 labels: ["Player","AI"],
                 datasets: [
                     {
                         label: `最终得分`,
-                        data: [s,rndLog.score]
+                        data: [s,log.finalStatus.score]
                     }
                 ]
             };
             chart.update();
+
+            return log;
         }
 
         const playerResult = playerRun(run_data,aiRunFun);

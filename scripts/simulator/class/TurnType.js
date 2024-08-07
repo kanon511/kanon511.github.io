@@ -1,4 +1,5 @@
 import { deep_copy } from "../../util/utility.js";
+import { seed,Random } from "../../util/Random.js";
 
 /**
  * ターンごとのタイプ(vocal, dance, visual)を設定するクラス
@@ -9,6 +10,8 @@ export class TurnType {
      * @type {Array<Stirng>} ターンごとのタイプ
      */
     #turnTypes;
+    #turnCount;
+    #random = new Random(seed);
 
     /**
      * ターンタイプクラスのインスタンスを作成する
@@ -28,12 +31,12 @@ export class TurnType {
         // 最初のターンを流行1位に固定する
         let turnCountStart = 0;
         const totalTurnCount = turnTypes.reduce((p,c)=>p+c, 0);
-        if (totalTurnCount < 12) {
+        if (totalTurnCount < 12 || (typeCount[criteariaRank[0]] >= typeCount[criteariaRank[1]] + typeCount[criteariaRank[2]])) {
             this.#turnTypes[0] = criteariaRank[0];
             typeCount[criteariaRank[0]] -= 1;
             turnCountStart++;
         } else {
-            if (Math.random() < 0.8) {
+            if (this.#random.random() < 0.8) {
                 this.#turnTypes[0] = criteariaRank[0];
                 typeCount[criteariaRank[0]] -= 1;
                 turnCountStart++;
@@ -64,7 +67,7 @@ export class TurnType {
      */
     #getRandomIndex (array) {
         const totalCount = array.reduce((pre, crt) => pre+crt, 0);
-        const randomNumber = Math.floor(Math.random()*totalCount);
+        const randomNumber = Math.floor(this.#random.random()*totalCount);
         for (let i = 0, currentNumber = 0; i < array.length; i++) {
             currentNumber += array[i];
             if (randomNumber < currentNumber) {
@@ -96,6 +99,7 @@ export class TurnType {
         //     case 10: return { [criteariaRank[0]] : 5, [criteariaRank[1]] : 3, [criteariaRank[2]] : 2 };
         //     case 12: return { [criteariaRank[0]] : 5, [criteariaRank[1]] : 4, [criteariaRank[2]] : 3 };
         // }
+        this.#turnCount = { 'vocal': turnTypes[0], 'dance': turnTypes[1], 'visual': turnTypes[2] };
         return { 'vocal': turnTypes[0], 'dance': turnTypes[1], 'visual': turnTypes[2] }
         // throw new Error(`${turnCount}は想定されていないターン数です`);
     }
@@ -112,6 +116,10 @@ export class TurnType {
             return this.#turnTypes[this.#turnTypes.length-1];
         }
         return this.#turnTypes[idx];
+    }
+
+    getCount (type) {
+        return this.#turnCount[type];
     }
 
     /**

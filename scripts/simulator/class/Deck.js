@@ -1,7 +1,26 @@
 import { SkillCard } from "../data/skillCardData.js";
 import { seed,Random } from "../../util/Random.js";
 
+/**
+ * param1からparam2までの連番配列を返します。
+ * @param {*} startNumber 開始番号
+ * @param {*} endNumber 終了番号
+ * @returns {Array[Number]} 連番配列
+ */
+function createRange (startNumber, endNumber) {
+    const list = [];
+    for (let i = startNumber; i < endNumber; i++) {
+        list.push(i);
+    }
+    return list;
+}
+
+/**
+ * スキルカードのデッキ
+ */
 export class Deck {
+
+    // property
 
     #index_drawPile       = [];
     #index_handCards      = [];
@@ -11,28 +30,31 @@ export class Deck {
     #index_first_draw = [];
     #random = new Random(seed);
 
+    /**
+     * コンストラクタ
+     * @param {Array[Number]} skillCardIds デッキに入れるスキルカードのID配列
+     */
     constructor (skillCardIds) {
         this.skillCards = skillCardIds.map(id => new SkillCard(id));
         this.init();
     }
 
+    /**
+     * 配列の中身をランダムに入れ替えます。
+     * @param {Array} list 
+     */
     shuffle (list) {
         for (let i = list.length; 1 < i; i--) {
-            const n = Math.floor(this.#random.random() * i);
-            [list[n], list[i - 1]] = [list[i - 1], list[n]];
+            const rnd = Math.floor(this.#random.random()*i);
+            [list[rnd], list[i - 1]] = [list[i - 1], list[rnd]];
         }
     }
 
-    createRange (startNumber, endNumber) {
-        const list = [];
-        for (let i = startNumber; i < endNumber; i++) {
-            list.push(i);
-        }
-        return list;
-    }
-
+    /**
+     * 初期化
+     */
     init () {
-        this.#index_drawPile = this.createRange(0, this.skillCards.length);
+        this.#index_drawPile = createRange(0, this.skillCards.length);
 
         // レッスン開始時手札に入るカードのインデックスリスト
         this.#index_first_draw = this.#index_drawPile
@@ -41,6 +63,7 @@ export class Deck {
                     .includes('レッスン開始時手札に入る'));
         
         this.shuffle(this.#index_drawPile);
+        // this.#index_drawPile = [7, 3, 10, 5, 9, 18, 12, 10, 2, 16, 4, 13, 11, 15, 0, 17, 14, 6, 8, 19];
         this.#index_handCards = [];
         this.#index_discardPile = [];
         this.#index_exhaustedCards = [];
@@ -51,7 +74,6 @@ export class Deck {
             // 最初のドローでレッスン開始時手札に入るを手札に入れる
             this.#flag_first_draw = false;
             this.#index_first_draw.forEach(index=>this.addHandCards(index));
-            // this.#index_handCards.push(...this.#index_first_draw);
             this.#index_first_draw.forEach(item=>this.#index_drawPile.splice(this.#index_drawPile.indexOf(item), 1));
             number -= this.#index_handCards.length;
         }
@@ -62,7 +84,6 @@ export class Deck {
                 this.#index_discardPile = [];
                 this.shuffle(this.#index_drawPile);
             }
-            // this.#index_handCards.push(this.#index_drawPile.shift());
             this.addHandCards(this.#index_drawPile.shift());
         }
     }
@@ -96,13 +117,9 @@ export class Deck {
 
     useCard (number) {
         const usedCard = this.getHandCardByNumber(number);
-        if (usedCard.afterUse) {
-            switch (usedCard.afterUse.type) {
-                case 'exhaust': 
-                    if (--usedCard.afterUse.value <= 0) {
-                        this.exhaust(number);
-                    }
-                    break;
+        if (usedCard.limit > 0) {
+            if (--usedCard.limit == 0) {
+                this.exhaust(number);
             }
         } else {
             this.discard(number);
@@ -110,10 +127,22 @@ export class Deck {
     }
 
     exhaust (number) {
-        this.#index_exhaustedCards.push(...this.#index_handCards.splice(number, 1));
+        this.resetCard(this.getHandCardByNumber(number));
+        this.#index_handCards.splice(number, 1).forEach(card=>this.#index_exhaustedCards.push(card));
+    }
+
+    resetCard (card) {
+        card.executions = null;
+        card.evaluation = 0;
+        card.scheduledExecutions = null;
     }
 
     discard (number) {
+        this.resetCard(this.getHandCardByNumber(number));
+        // const card = this.getHandCardByNumber(number);
+        // card.executions = null;
+        // card.evaluation = 0;
+        // card.scheduledExecutions = null;
         this.#index_discardPile.push(...this.#index_handCards.splice(number, 1));
     }
 
